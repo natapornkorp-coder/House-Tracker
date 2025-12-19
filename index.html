@@ -3,60 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Online Construction Tracker (Multi-Project)</title>
+    <title>Online Construction Tracker Pro</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
-
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
+        :root { --primary: #2c3e50; --secondary: #34495e; --accent: #27ae60; --danger: #e74c3c; --light: #ecf0f1; }
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Sarabun', sans-serif; background: #f4f7f6; overflow: hidden; }
-        .top-nav { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: #2c3e50; color: white; height: 50px; }
         
-        /* สไตล์สำหรับระบบ Tab */
-        .project-tabs { display: flex; background: #34495e; overflow-x: auto; padding: 5px 10px; gap: 5px; align-items: center; }
-        .tab { background: #5d6d7e; color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 4px 4px 0 0; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
-        .tab.active { background: #ecf0f1; color: #2c3e50; font-weight: bold; }
-        .btn-add-tab { background: #27ae60; color: white; border: none; padding: 5px 10px; border-radius: 50%; cursor: pointer; }
-        .btn-del-tab { color: #e74c3c; cursor: pointer; font-size: 12px; }
+        /* Navigation */
+        .top-nav { display: flex; justify-content: space-between; align-items: center; padding: 0 15px; background: var(--primary); color: white; height: 60px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .btn-group { display: flex; gap: 8px; }
+        .btn-nav { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; transition: 0.2s; }
+        .btn-nav:hover { background: rgba(255,255,255,0.2); }
+        .btn-delete-plan { border-color: var(--danger); color: #ff7675; }
+        .btn-delete-plan:hover { background: var(--danger); color: white; }
 
-        #map-container { height: 45vh; width: 100%; position: relative; border-bottom: 3px solid #ddd; }
+        /* Tab System */
+        .project-tabs { display: flex; background: var(--secondary); overflow-x: auto; padding: 8px 10px 0 10px; gap: 6px; align-items: flex-end; }
+        .tab { 
+            background: #5d6d7e; color: #bdc3c7; border: none; padding: 10px 18px; cursor: pointer; 
+            border-radius: 8px 8px 0 0; min-width: 140px; position: relative; transition: 0.3s;
+            display: flex; flex-direction: column; gap: 5px;
+        }
+        .tab.active { background: white; color: var(--primary); font-weight: bold; }
+        .tab-header { display: flex; justify-content: space-between; width: 100%; align-items: center; }
+        
+        /* Progress Bar in Tab */
+        .tab-progress-container { width: 100%; height: 5px; background: rgba(0,0,0,0.2); border-radius: 3px; overflow: hidden; }
+        .tab-progress-bar { height: 100%; background: var(--accent); transition: width 0.4s ease; width: 0%; }
+
+        .btn-add-tab { background: var(--accent); color: white; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; margin-bottom: 8px; flex-shrink: 0; }
+        .btn-del-tab { color: #95a5a6; cursor: pointer; transition: 0.2s; }
+        .btn-del-tab:hover { color: var(--danger); }
+
+        /* Map & Layout */
+        #map-container { height: 40vh; width: 100%; position: relative; background: #ddd; }
         #map { height: 100%; width: 100%; }
-        .summary-section { padding: 15px; height: calc(55vh - 110px); overflow-y: auto; background: white; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
-        .btn-online { background: #27ae60; color: white; padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; }
-        .zone-label { background: rgba(255, 255, 255, 0.9); border: 1px solid #333; border-radius: 4px; padding: 2px 6px; font-size: 11px; font-weight: bold; }
+        
+        .summary-section { padding: 15px; height: calc(60vh - 115px); overflow-y: auto; background: white; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; padding: 12px; background: #f8f9fa; border-bottom: 2px solid #eee; font-size: 14px; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+        
+        .status-pill { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .status-done { background: #e9f7ef; color: #27ae60; }
+        .status-pending { background: #f4f6f7; color: #7f8c8d; }
+        
+        .zone-label { background: white; border: 1px solid #2c3e50; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; box-shadow: 1px 1px 3px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
 
     <div class="top-nav">
-        <div><strong><i class="fa-solid fa-earth-americas"></i> CM49 - Construction Tracker </strong></div>
+        <div><strong><i class="fa-solid fa-hard-hat"></i> CM49 TRACKER</strong></div>
         <div class="btn-group">
-            <button class="btn-online" id="status-cloud">เชื่อมต่อสำเร็จ</button>
-            <button onclick="document.getElementById('uploadInput').click()" style="padding:6px; cursor:pointer;"><i class="fa-solid fa-image"></i> แบบ</button>
+            <button class="btn-nav" onclick="document.getElementById('uploadInput').click()">
+                <i class="fa-solid fa-upload"></i> อัปโหลดแบบ
+            </button>
+            <button class="btn-nav btn-delete-plan" onclick="deletePlanImage()">
+                <i class="fa-solid fa-image-slash"></i> ลบแบบ
+            </button>
             <input type="file" id="uploadInput" accept="image/*" style="display:none">
         </div>
     </div>
 
     <div class="project-tabs" id="tabList">
-        <button class="btn-add-tab" onclick="addProject()">+</button>
-    </div>
+        </div>
 
     <div id="map-container"><div id="map"></div></div>
 
     <div class="summary-section">
-        <h3><i class="fa-solid fa-list-check"></i> สถานะงาน </h3>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0;"><i class="fa-solid fa-list-check"></i> รายการพื้นที่</h3>
+            <span id="project-stats" style="font-size:13px; font-weight:bold; color:var(--primary);"></span>
+        </div>
         <table id="progressTable">
             <thead>
                 <tr>
-                    <th>รายการ</th>
+                    <th>พื้นที่</th>
                     <th>สถานะ</th>
-                    <th>จัดการ</th>
+                    <th style="text-align:right">จัดการ</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -67,6 +98,7 @@
     <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>
 
     <script>
+        // --- Firebase Initialize ---
         const firebaseConfig = {
             apiKey: "AIzaSyCUKIYKjC-bYpNm3o0iJxkQu04vek1W9eI",
             authDomain: "house-45.firebaseapp.com",
@@ -74,50 +106,77 @@
             projectId: "house-45",
             storageBucket: "house-45.firebasestorage.app",
             messagingSenderId: "147246420892",
-            appId: "1:147246420892:web:7d84b9ad7337c9e1662e59",
-            measurementId: "G-2L3KJ31NC8"
+            appId: "1:147246420892:web:7d84b9ad7337c9e1662e59"
         };
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         
-        let currentProjectId = 'project1'; // Default ID
+        let currentProjectId = 'home'; 
         let allZones = {};
         let imageOverlay;
 
         const map = L.map('map', { crs: L.CRS.Simple, minZoom: -2, maxZoom: 4 });
         map.pm.addControls({ position: 'topleft', drawCircle: false, drawMarker: false });
 
-        // --- ระบบจัดการโครงการ (Tabs) ---
-        const projectsRef = db.ref('projects');
-
-        function loadProjects() {
-            projectsRef.on('value', (snapshot) => {
-                const projects = snapshot.val();
-                const tabList = document.getElementById('tabList');
-                tabList.innerHTML = '';
-                
-                if (projects) {
-                    Object.keys(projects).forEach(id => {
-                        const tab = document.createElement('button');
-                        tab.className = `tab ${id === currentProjectId ? 'active' : ''}`;
-                        tab.innerHTML = `<span>${projects[id].name}</span> <i class="fa-solid fa-xmark btn-del-tab" onclick="deleteProject(event, '${id}')"></i>`;
-                        tab.onclick = () => switchProject(id);
-                        tabList.appendChild(tab);
-                    });
-                }
-                const addBtn = document.createElement('button');
-                addBtn.className = 'btn-add-tab';
-                addBtn.innerHTML = '+';
-                addBtn.onclick = addProject;
-                tabList.appendChild(addBtn);
+        // --- Tab Management ---
+        function initTabs() {
+            db.ref('projects').on('value', (projectsSnap) => {
+                db.ref('data').on('value', (dataSnap) => {
+                    renderTabs(projectsSnap.val(), dataSnap.val());
+                });
             });
         }
 
+        function renderTabs(projects, allData) {
+            const tabList = document.getElementById('tabList');
+            tabList.innerHTML = '';
+
+            // 1. Home Tab (Default)
+            createTabUI('home', 'หน้าแรก', true, allData?.home?.zones);
+
+            // 2. Custom Projects
+            if (projects) {
+                Object.keys(projects).forEach(id => {
+                    if(id !== 'home') createTabUI(id, projects[id].name, false, allData?.[id]?.zones);
+                });
+            }
+
+            // 3. Add Button
+            const addBtn = document.createElement('button');
+            addBtn.className = 'btn-add-tab';
+            addBtn.innerHTML = '<i class="fa-solid fa-plus"></i>';
+            addBtn.onclick = addProject;
+            tabList.appendChild(addBtn);
+        }
+
+        function createTabUI(id, name, isPermanent, zones) {
+            let percent = 0;
+            if (zones) {
+                const total = Object.keys(zones).length;
+                const done = Object.values(zones).filter(z => z.isDone).length;
+                percent = total > 0 ? Math.round((done / total) * 100) : 0;
+            }
+
+            const tab = document.createElement('div');
+            tab.className = `tab ${id === currentProjectId ? 'active' : ''}`;
+            tab.onclick = () => switchProject(id);
+            tab.innerHTML = `
+                <div class="tab-header">
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${name}</span>
+                    ${!isPermanent ? `<i class="fa-solid fa-xmark btn-del-tab" onclick="deleteProject(event, '${id}')"></i>` : ''}
+                </div>
+                <div class="tab-progress-container">
+                    <div class="tab-progress-bar" style="width: ${percent}%"></div>
+                </div>
+                <div style="font-size:9px; margin-top:2px; color:inherit;">${percent}% complete</div>
+            `;
+            document.getElementById('tabList').appendChild(tab);
+        }
+
         function addProject() {
-            const name = prompt("ชื่อโครงการใหม่:");
+            const name = prompt("ชื่อโปรเจกต์ใหม่:");
             if (name) {
-                const newRef = projectsRef.push();
+                const newRef = db.ref('projects').push();
                 newRef.set({ name: name });
                 switchProject(newRef.key);
             }
@@ -125,130 +184,129 @@
 
         function deleteProject(e, id) {
             e.stopPropagation();
-            if (confirm("ลบโครงการนี้และข้อมูลทั้งหมดในโครงการ?")) {
+            if (confirm("ลบโครงการนี้และข้อมูลแผนที่ทั้งหมด?")) {
+                db.ref(`projects/${id}`).remove();
                 db.ref(`data/${id}`).remove();
-                projectsRef.child(id).remove();
+                if (currentProjectId === id) switchProject('home');
             }
         }
 
         function switchProject(id) {
             currentProjectId = id;
-            // ยกเลิก Listener เก่า
-            db.ref(`data/${currentProjectId}`).off();
             initDataSync();
-            loadProjects(); // เพื่อ Update UI tab active
         }
 
-        // --- การ Sync ข้อมูลตาม Project ID ---
+        // --- Data & Map Logic ---
         function initDataSync() {
-            const currentDataRef = db.ref(`data/${currentProjectId}`);
+            db.ref('data').off(); 
+            const currentRef = db.ref(`data/${currentProjectId}`);
             
-            // เคลียร์หน้าจอ
-            Object.values(allZones).forEach(layer => map.removeLayer(layer));
+            // Clear Layer
+            Object.values(allZones).forEach(l => map.removeLayer(l));
             allZones = {};
-            if (imageOverlay) map.removeLayer(imageOverlay);
-            renderTable();
+            if (imageOverlay) { map.removeLayer(imageOverlay); imageOverlay = null; }
 
-            // ฟังข้อมูล Zones
-            currentDataRef.child('zones').on('value', (snapshot) => {
-                const data = snapshot.val();
-                Object.values(allZones).forEach(layer => map.removeLayer(layer));
+            // Sync Zones
+            currentRef.child('zones').on('value', (snap) => {
+                const data = snap.val();
+                Object.values(allZones).forEach(l => map.removeLayer(l));
                 allZones = {};
                 if (data) {
                     Object.keys(data).forEach(id => {
-                        const item = data[id];
-                        const layer = L.geoJSON(item.geoJSON).getLayers()[0];
-                        renderZoneFromServer(layer, id, item.name, item.isDone);
+                        const layer = L.geoJSON(data[id].geoJSON).getLayers()[0];
+                        setupZone(layer, id, data[id]);
                     });
                 }
                 renderTable();
             });
 
-            // ฟังรูปภาพ
-            currentDataRef.child('planImage').on('value', (snapshot) => {
-                const url = snapshot.val();
-                if (url) loadImageToMap(url);
+            // Sync Image
+            currentRef.child('planImage').on('value', (snap) => {
+                const url = snap.val();
+                if (url) {
+                    const img = new Image();
+                    img.onload = () => {
+                        if (imageOverlay) map.removeLayer(imageOverlay);
+                        const bounds = [[0, 0], [img.height, img.width]];
+                        imageOverlay = L.imageOverlay(url, bounds).addTo(map);
+                        map.fitBounds(bounds);
+                    };
+                    img.src = url;
+                }
             });
         }
 
-        // --- ส่วนการทำงานแผนที่ (อ้างอิง currentProjectId) ---
-        map.on('pm:create', (e) => {
-            const zoneName = prompt("ชื่อพื้นที่:");
-            if (zoneName) {
-                const newZoneRef = db.ref(`data/${currentProjectId}/zones`).push();
-                newZoneRef.set({
-                    name: zoneName,
-                    isDone: false,
-                    geoJSON: e.layer.toGeoJSON()
-                });
-            }
-            map.removeLayer(e.layer);
-        });
-
-        function renderZoneFromServer(layer, id, name, isDone) {
+        function setupZone(layer, id, data) {
             layer.zoneId = id;
-            layer.zoneName = name;
-            layer.isDone = isDone;
+            layer.zoneName = data.name;
+            layer.isDone = data.isDone;
             layer.addTo(map);
-            layer.bindTooltip(name, { permanent: true, direction: 'center', className: 'zone-label' });
-            layer.setStyle(isDone ? {color:'#27ae60',fillColor:'#2ecc71',fillOpacity:0.6} : {color:'gray',fillColor:'gray',fillOpacity:0.3});
-            allZones[id] = layer;
+            layer.bindTooltip(data.name, { permanent: true, direction: 'center', className: 'zone-label' });
+            
+            layer.setStyle(data.isDone 
+                ? { color: '#27ae60', fillColor: '#2ecc71', fillOpacity: 0.5 } 
+                : { color: '#7f8c8d', fillColor: '#bdc3c7', fillOpacity: 0.3 });
+
             layer.on('click', () => {
                 if(map.pm.globalEditModeEnabled()) return;
-                db.ref(`data/${currentProjectId}/zones/${id}`).update({ isDone: !isDone });
+                db.ref(`data/${currentProjectId}/zones/${id}`).update({ isDone: !data.isDone });
             });
-        }
-
-        document.getElementById('uploadInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (ev) => db.ref(`data/${currentProjectId}/planImage`).set(ev.target.result);
-            reader.readAsDataURL(file);
-        });
-
-        function loadImageToMap(url) {
-            const img = new Image();
-            img.onload = () => {
-                if (imageOverlay) map.removeLayer(imageOverlay);
-                const bounds = [[0, 0], [img.height, img.width]];
-                imageOverlay = L.imageOverlay(url, bounds).addTo(map);
-                map.fitBounds(bounds);
-            };
-            img.src = url;
+            allZones[id] = layer;
         }
 
         function renderTable() {
             const tbody = document.querySelector('#progressTable tbody');
             tbody.innerHTML = '';
-            Object.keys(allZones).forEach(id => {
-                const layer = allZones[id];
+            const zonesArr = Object.values(allZones);
+            const done = zonesArr.filter(z => z.isDone).length;
+            document.getElementById('project-stats').innerText = `${done} / ${zonesArr.length} สำเร็จ`;
+
+            zonesArr.forEach(layer => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><strong>${layer.zoneName}</strong></td>
-                    <td>
-                        <input type="checkbox" ${layer.isDone ? 'checked' : ''} onchange="toggleZone('${id}', ${layer.isDone})">
-                        ${layer.isDone ? 'เสร็จ' : 'รอดำเนินการ'}
-                    </td>
-                    <td>
-                        <button onclick="deleteZone('${id}')" style="color:red; border:none; background:none; cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
+                    <td><span class="status-pill ${layer.isDone ? 'status-done' : 'status-pending'}">${layer.isDone ? 'เสร็จสิ้น' : 'รอดำเนินการ'}</span></td>
+                    <td style="text-align:right">
+                        <input type="checkbox" ${layer.isDone ? 'checked' : ''} onchange="db.ref('data/${currentProjectId}/zones/${layer.zoneId}').update({isDone: !${layer.isDone}})">
+                        <button onclick="if(confirm('ลบ?')) db.ref('data/${currentProjectId}/zones/${layer.zoneId}').remove()" style="color:var(--danger); border:none; background:none; cursor:pointer; margin-left:10px;"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function toggleZone(id, currentStatus) {
-            db.ref(`data/${currentProjectId}/zones/${id}`).update({ isDone: !currentStatus });
+        // --- New: Delete Plan Function ---
+        function deletePlanImage() {
+            if (confirm("คุณต้องการลบรูปภาพแบบแปลนของโครงการนี้? (รายการพื้นที่ที่วาดไว้จะไม่หาย)")) {
+                db.ref(`data/${currentProjectId}/planImage`).remove().then(() => {
+                    if (imageOverlay) {
+                        map.removeLayer(imageOverlay);
+                        imageOverlay = null;
+                    }
+                });
+            }
         }
 
-        function deleteZone(id) {
-            if(confirm('ลบพื้นที่นี้?')) db.ref(`data/${currentProjectId}/zones/${id}`).remove();
-        }
+        // Drawing
+        map.on('pm:create', (e) => {
+            const name = prompt("ชื่อโซน:");
+            if (name) {
+                db.ref(`data/${currentProjectId}/zones`).push().set({
+                    name: name, isDone: false, geoJSON: e.layer.toGeoJSON()
+                });
+            }
+            map.removeLayer(e.layer);
+        });
 
-        // เริ่มต้นทำงาน
-        loadProjects();
+        // Upload
+        document.getElementById('uploadInput').onchange = (e) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => db.ref(`data/${currentProjectId}/planImage`).set(ev.target.result);
+            reader.readAsDataURL(e.target.files[0]);
+        };
+
+        initTabs();
         initDataSync();
     </script>
 </body>
 </html>
-
